@@ -28,10 +28,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 import java.util.zip.GZIPInputStream;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.HttpMethod;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -45,6 +48,7 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
+import org.apache.http.ConnectionReuseStrategy;
 
 import site.ycsb.ByteIterator;
 import site.ycsb.DB;
@@ -98,6 +102,19 @@ public class RestClient extends DB {
     requestBuilder = requestBuilder.setConnectionRequestTimeout(readTimeout);
     requestBuilder = requestBuilder.setSocketTimeout(readTimeout);
     HttpClientBuilder clientBuilder = HttpClientBuilder.create().setDefaultRequestConfig(requestBuilder.build());
+    clientBuilder = clientBuilder.setConnectionReuseStrategy(new ConnectionReuseStrategy() {
+      public boolean keepAlive(HttpResponse r, HttpContext c) {
+        return true;
+      }
+    });
+    clientBuilder = clientBuilder.setConnectionTimeToLive(10, TimeUnit.MINUTES);
+    // System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.SimpleLog");
+    // System.setProperty("org.apache.commons.logging.simplelog.showdatetime", "true");
+    // System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http", "DEBUG");
+    // System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.wire", "ERROR");
+    // System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.impl.conn", "DEBUG");
+    // System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.impl.client", "DEBUG");
+    // System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.client", "DEBUG");
     this.client = clientBuilder.setConnectionManagerShared(true).build();
   }
 
@@ -231,7 +248,6 @@ public class RestClient extends DB {
           stream.close();
           EntityUtils.consumeQuietly(responseEntity);
           response.close();
-          client.close();
           throw new TimeoutException();
         }
         responseContent.append(line);
@@ -243,7 +259,6 @@ public class RestClient extends DB {
     }
     EntityUtils.consumeQuietly(responseEntity);
     response.close();
-    client.close();
     return responseCode;
   }
 
@@ -278,7 +293,6 @@ public class RestClient extends DB {
           stream.close();
           EntityUtils.consumeQuietly(responseEntity);
           response.close();
-          client.close();
           throw new TimeoutException();
         }
         responseContent.append(line);
@@ -289,7 +303,6 @@ public class RestClient extends DB {
     }
     EntityUtils.consumeQuietly(responseEntity);
     response.close();
-    client.close();
     return responseCode;
   }
   
@@ -305,7 +318,6 @@ public class RestClient extends DB {
     CloseableHttpResponse response = client.execute(request);
     responseCode = response.getStatusLine().getStatusCode();
     response.close();
-    client.close();
     return responseCode;
   }
 
